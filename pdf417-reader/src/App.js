@@ -1,115 +1,144 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { BrowserMultiFormatReader, BarcodeFormat } from '@zxing/library'; // Importar BarcodeFormat
+import { BrowserMultiFormatReader, BarcodeFormat } from '@zxing/library';
+import axios from 'axios';
 import './App.css';
 
 function App() {
-  const [data, setData] = useState(null);  // Guardar los datos del codigo escaneado
-  const [scanning, setScanning] = useState(true);  // El escaneo se iniciara de inmediato
-  const [decodedInfo, setDecodedInfo] = useState({});  // Para almacenar los datos desglosados
-  const [documentMatch, setDocumentMatch] = useState(false);  // Para verificar si el documento coincide
+    const [data, setData] = useState(null);
+    const [scanning, setScanning] = useState(true);
+    const [decodedInfo, setDecodedInfo] = useState({});
+    const [documentMatch, setDocumentMatch] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [userInfo, setUserInfo] = useState({ nombre: '', rol: '', color: '' }); // Añadir color al estado
+    const [scanned, setScanned] = useState(false);
 
-  // Formatos de codigos que deseas soportar
-  const formsToSupport = [
-    BarcodeFormat.PDF_417,
-    BarcodeFormat.QR_CODE,
-    BarcodeFormat.DATA_MATRIX,
-    BarcodeFormat.AZTEC,
-  ];
+    const formsToSupport = [BarcodeFormat.PDF_417];
 
-  // Funcion para desglosar los datos escaneados
-  const parseData = (dataString) => {
-    const dataArray = dataString.split('@');  // Separamos la cadena por el simbolo '@'
-    return {
-      dni: dataArray[0],
-      apellido: dataArray[1],
-      nombre: dataArray[2],
-      sexo: dataArray[3],
-      numDocumento: dataArray[4],
-      categoria: dataArray[5],
-      fechaNacimiento: dataArray[6],
-      fechaEmision: dataArray[7],
-      codigoAdicional: dataArray[8],
+    const parseData = (dataString) => {
+        const dataArray = dataString.split('@');
+        return {
+            dni: dataArray[0],
+            apellido: dataArray[1],
+            nombre: dataArray[2],
+            numDocumento: dataArray[4],
+        };
     };
-  };
 
-  useEffect(() => {
-    const codeReader = new BrowserMultiFormatReader();  // Crear el lector de codigos
+    useEffect(() => {
+        const codeReader = new BrowserMultiFormatReader();
+        const videoElement = document.getElementById('video');
 
-    const videoElement = document.getElementById('video');  // Elemento donde se mostrara el video
+        const startScanning = async () => {
+            try {
+                await codeReader.decodeFromVideoDevice(
+                    null,
+                    videoElement,
+                    async (result, error) => {
+                        if (result) {
+                            const parsedData = parseData(result.getText());
+                            setData(result.getText());
+                            setDecodedInfo(parsedData);
+                            setScanning(false);
+                            setScanned(true);
 
-    // Funcion para comenzar el escaneo
-    const startScanning = async () => {
-      try {
-        await codeReader.decodeFromVideoDevice(
-          null,  // Usar la camara predeterminada
-          videoElement,  // Elemento de video donde se visualizara
-          (result, error) => {
-            if (result) {
-              // Si se detecta un codigo y esta en los formatos soportados
-              if (result.getText() && formsToSupport.includes(result.getBarcodeFormat())) {
-                const parsedData = parseData(result.getText());  // Desglosar los datos
-                setData(result.getText());  // Mostrar el codigo escaneado completo
-                setDecodedInfo(parsedData);  // Mostrar los datos desglosados
+                            try {
+                                const response = await axios.post('http://localhost:5000/api/validate-dni', {
+                                    dni: parsedData.numDocumento,
+                                });
 
-                // Verificar si el número de documento coincide
-                if (parsedData.numDocumento === '42333481') {
-                  setDocumentMatch(true);  // Establecer que el documento coincide
-                } else {
-                  setDocumentMatch(false);  // Establecer que el documento no coincide
-                }
-              }
+                                if (response.data.match) {
+                                    setDocumentMatch(true);
+                                    setUserInfo({
+                                        nombre: response.data.user.usuario,
+                                        rol: response.data.user.rol,
+                                        color: response.data.user.color, // Captura el color
+                                    });
+                                } else {
+                                    setDocumentMatch(false);
+                                    setUserInfo({ nombre: '', rol: '', color: '' });
+                                }
+                            } catch (error) {
+                                console.error('Error al conectar con el backend:', error);
+                                setErrorMessage('Error al conectar con el servidor.');
+                            }
+                        }
+
+                        if (error) console.error(error);
+                    }
+                );
+            } catch (error) {
+                console.error('Error al iniciar el escaneo:', error);
+                setErrorMessage('No se pudo acceder a la cámara.');
             }
-            if (error) {
-              // Suprimir el error específico
-              if (error.message !== 'No MultiFormat Readers were able to detect the code') {
-                console.error(error);  // Mostrar solo otros errores en la consola
-              }
-            }
-          }
-        );
-      } catch (error) {
-        console.error('Error al iniciar el escaneo:', error);
-      }
-    };
+        };
 
-    if (scanning) {
-      startScanning();  // Iniciar escaneo automaticamente
-    }
+        if (scanning) startScanning();
 
-    return () => {
-      if (codeReader) {
-        codeReader.reset();  // Detener el escaneo cuando el componente se desmonta
-      }
-    };
-  }, [scanning]);  // Ejecutar cuando el estado de scanning cambie
+        return () => codeReader.reset();
+    }, [scanning]);
 
-  return (
-    <div className="App">
-      <h1>Lector de Codigos Automatico</h1>
+    return (
+        <div
+            className="App"
+            style={{
+                backgroundColor: userInfo.color || '#ffffff',
+                color: userInfo.color ? '#ffffff' : '#000000',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background-color 0.5s ease, color 0.5s ease',
+            }}
+        >
+            <h1>Lector de Códigos Automático</h1>
 
-      <div className="video-container">
-        <video
-          id="video"
-          className="video"
-        />
-      </div>
+            <div className="video-container">
+                <video id="video" className="video" />
+            </div>
 
-      {/* Mostrar los datos desglosados o el circulo con check */}
-      <div>
-        {documentMatch ? (
-          // Si el documento coincide, mostrar el circulo verde con check
-          <div className="check-circle">
-            <span className="check-icon">✔</span>
-          </div>
-        ) : 
-        (
-          <div className="cross-circle">
-            <span className="cross-icon">✔</span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+            {errorMessage && <p className="error-message">{errorMessage}</p>}
+
+            {scanned ? (
+                documentMatch ? (
+                    <div>
+                        <div className="check-circle">
+                            <span className="check-icon">✔</span>
+                        </div>
+                        <p>Documento válido y encontrado en la base de datos.</p>
+                        <p>
+                            <strong>Nombre:</strong> {userInfo.nombre}
+                        </p>
+                        <p>
+                            <strong>Rol:</strong> {userInfo.rol}
+                        </p>
+                    </div>
+                ) : (
+                    <div>
+                        <div className="cross-circle">
+                            <span className="cross-icon">✖</span>
+                        </div>
+                        <p>Documento no encontrado en la base de datos.</p>
+                    </div>
+                )
+            ) : (
+                <p>Escanee un DNI...</p>
+            )}
+
+            {!scanning && (
+                <button
+                    onClick={() => {
+                        setScanning(true);
+                        setScanned(false);
+                        setUserInfo({ nombre: '', rol: '', color: '' });
+                        setErrorMessage('');
+                    }}
+                    className="restart-button"
+                >
+                    Reiniciar Escaneo
+                </button>
+            )}
+        </div>
+    );
 }
 
 export default App;
