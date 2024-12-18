@@ -2,23 +2,25 @@ const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
 const app = express();
-const port = 5000;
+const port = process.env.PORT || 5000; // Puerto dinámico para producción
 
-// Configurar CORS para permitir solo el frontend en el puerto 3000
-app.use(cors({
-    origin: 'http://localhost:3000', // Permitir solicitudes solo desde tu frontend
-    methods: ['POST', 'GET'],        // Métodos HTTP permitidos
-    allowedHeaders: ['Content-Type'] // Encabezados permitidos
-}));
+// Configurar CORS para producción
+const corsOptions = {
+    origin: process.env.NODE_ENV === 'production' ? 'https://tudominio.com' : 'http://localhost:3000', // Cambia a tu dominio en producción
+    methods: ['POST', 'GET'],
+    allowedHeaders: ['Content-Type'],
+};
+
+app.use(cors(corsOptions)); // Middleware para CORS
 
 app.use(express.json()); // Middleware para parsear JSON en las solicitudes
 
 // Conexión a la base de datos MySQL
 const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: 'Eventos_sanfco',
-    database: 'eventos'  // Asegúrate de usar el nombre correcto de tu base de datos
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || 'Eventos_sanfco',
+    database: process.env.DB_NAME || 'eventos',
 });
 
 // Verificar conexión a la base de datos
@@ -64,8 +66,6 @@ app.post('/api/validate-dni', (req, res) => {
     });
 });
 
-
-
 // Ruta principal para comprobar que el servidor está activo
 app.get('/', (req, res) => {
     res.send('Servidor Backend corriendo correctamente');
@@ -75,3 +75,14 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
     console.log(`Servidor corriendo en el puerto ${port}`);
 });
+
+
+const path = require('path');
+
+if (process.env.NODE_ENV === 'production') {
+    app.use(express.static(path.join(__dirname, 'client/build')));
+
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(__dirname, 'client', 'build', 'index.html'));
+    });
+}

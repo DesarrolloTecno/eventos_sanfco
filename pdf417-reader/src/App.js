@@ -82,11 +82,8 @@ function App() {
             className="App"
             style={{
                 backgroundColor: userInfo.color || '#ffffff',
-                color: userInfo.color ? '#ffffff' : '#000000',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
+                color: userInfo.color ? '#ffffff' : '#000000', // Texto blanco si hay color de fondo
+                minHeight: '100vh',
                 transition: 'background-color 0.5s ease, color 0.5s ease',
             }}
         >
