@@ -17,6 +17,7 @@
         "react-dom": "^19.0.0",
         "react-pdf417": "^0.0.4",
         "react-qr-reader": "^3.0.0-beta-1",
+        "react-router-dom": "^7.0.2",
         "react-scripts": "5.0.1",
         "react-webcam": "^7.2.0",
         "stream-browserify": "^3.0.0",
@@ -29,7 +30,7 @@
         "test": "craco test",
         "eject": "react-scripts eject",
         "predeploy": "npm run build",
-        "deploy": "gh-pages -d build"
+        "deploy": "npx gh-pages -d build"
     },
     "eslintConfig": {
         "extends": [
@@ -49,8 +50,8 @@
             "last 1 safari version"
         ]
     },
+    "homepage": "https://DesarrolloTecno.github.io/eventos_sanfco",
     "devDependencies": {
         "gh-pages": "^6.2.0"
-    },
-    "homepage": "https://DesarrolloTecno.github.io/eventos_sanfco"
+    }
 }
